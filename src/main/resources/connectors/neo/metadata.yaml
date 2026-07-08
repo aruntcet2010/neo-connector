@@ -1,0 +1,17 @@
+type: NEO
+standard_type: NEO
+version: 1.0.0
+display_name: Neo
+logo_url: https://res.cloudinary.com/hevo/image/upload/v1764867647/dashboard/image_iwkgyj.png
+dark_mode_logo_url: https://res.cloudinary.com/hevo/image/upload/v1764867647/dashboard/image_iwkgyj.png
+description: Neo is a generic declarative connector that interprets a connector manifest (YAML) at runtime and syncs the streams it defines, without connector-specific code.
+documentation_path: /sources/neo/
+in_beta: true
+categories:
+  - SALES_AND_SUPPORT
+attributes:
+  supports_object_relations: false
+  supported_load_modes:
+    - MERGE
+  replication_types:
+    - HISTORICAL_AND_INCREMENTAL

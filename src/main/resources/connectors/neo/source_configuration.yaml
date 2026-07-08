@@ -1,0 +1,33 @@
+groups:
+  - type: CONNECTION
+    order: 1
+    title: Configure your declarative source
+
+fields:
+  - name: manifest_ref
+    display_name: "Manifest Reference"
+    description: "Identifier of the connector manifest to run (resolved to the latest stable manifest version)"
+    type: STRING
+    required: true
+    is_eligible_for_edit: true
+    group:
+      type: CONNECTION
+      field_order: 1
+    importance: HIGH
+    size: 100
+    helper_text:
+      text: "The manifest identifier registered in the manifest store"
+
+  - name: source_config_json
+    display_name: "Source Configuration"
+    description: "JSON object with the source settings the manifest's spec declares (credentials, start date, etc.)"
+    type: PASSWORD
+    required: true
+    is_eligible_for_edit: true
+    group:
+      type: CONNECTION
+      field_order: 2
+    importance: HIGH
+    size: 100
+    helper_text:
+      text: "Values for the fields declared in the manifest spec, as a JSON object"

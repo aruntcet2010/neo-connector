@@ -1,0 +1,35 @@
+# SchemaTests and DataTests are disabled until the interpreter's schema synthesis (P1) and
+# read loop (P2) land; the connector exposes no streams yet.
+test_execution:
+  resilience:
+    ConnectionRetryTest:
+      enabled: false
+  auth:
+    enabled: false
+  getSchema:
+    SchemaTests:
+      enabled: false
+  fetchData:
+    IncrementalSyncTests:
+      enabled: false
+    DataTests:
+      enabled: false
+
+test_config:
+  config_overrides:
+    hermes:
+      source_defaults:
+        internal_config:
+          connector_id: neo-connector
+          connector_version: "1.0"
+          config: {}
+
+      connectors:
+        "neo-connector":
+          connector_name: neo
+          target_domains: []
+  fetchData:
+    DataTests:
+      testFetchData:
+        custom_params:
+          disable_data_assertions: true
