@@ -22,10 +22,14 @@ public final class ManifestValidator {
 
     private static final String SCHEMA_RESOURCE = "/manifest/declarative_component_schema.yaml";
 
-    private final JsonSchema schema;
+    // Compiling the 5,250-line component schema is expensive (hundreds of MB transiently);
+    // compile it exactly once for the JVM.
+    private static final JsonSchema SCHEMA = compileSchema();
+
+    private final JsonSchema schema = SCHEMA;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public ManifestValidator() {
+    private static JsonSchema compileSchema() {
         try (InputStream in = ManifestValidator.class.getResourceAsStream(SCHEMA_RESOURCE)) {
             if (in == null) {
                 throw new ManifestException(
@@ -35,7 +39,7 @@ public final class ManifestValidator {
             JsonSchemaFactory factory =
                     JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V7);
             SchemaValidatorsConfig config = SchemaValidatorsConfig.builder().build();
-            this.schema = factory.getSchema(schemaNode, config);
+            return factory.getSchema(schemaNode, config);
         } catch (IOException e) {
             throw new ManifestException("Failed to read bundled component schema", e);
         }

@@ -13,9 +13,9 @@ per-stream poll-task classes are replaced by a manifest interpreter ported from 
 | Phase | Scope | Status |
 |---|---|---|
 | P0 | Manifest pipeline (parse → `$ref` → `$parameters` → schema validation) + Jinja expression engine (macros, filters, Python-faithful coercion) | ✅ done, tested |
-| P1 | Full-refresh read: HttpRequester, ApiKey/Bearer/Basic auth, DpathExtractor, paginators, schema synthesis → `ObjectSchema`, `CheckStream` | ⬜ |
-| P2 | Incremental + partitions: DatetimeBasedCursor windowing, offset round-trip, List/Substream partition routers | ⬜ |
-| P3 | OAuth, error-handler/backoff fidelity, transformations, manifest-store fetch, differential test harness vs the Python CDK | ⬜ |
+| P1 | Full-refresh read: HttpRequester (collision-raising option merges), ApiKey/Bearer/Basic auth, DpathExtractor, PageIncrement/OffsetIncrement/CursorPagination, schema synthesis → `ObjectSchema`, `CheckStream`, `ManifestPollTask` + `generateTasks` wiring. Milestone: the real source-jotform `forms` stream syncs end-to-end against a mock API. | ✅ done, tested |
+| P2 | Incremental + partitions: DatetimeBasedCursor windowing, offset round-trip, List/Substream partition routers, transformations, record_filter (all currently log a warning and are skipped) | ⬜ |
+| P3 | OAuth, error-handler/backoff fidelity, manifest-store fetch, differential test harness vs the Python CDK | ⬜ |
 
 Out of scope by design: custom Python components (`class_name` → `components.py`), AsyncRetriever,
 dynamic streams. Manifests using those fall back to natively built connectors.
@@ -32,13 +32,22 @@ src/main/java/io/hevo/connector/
     │   ├── ComponentTransformer       # $parameters propagation + default type inference
     │   ├── ManifestValidator          # networknt draft-07 validation against the bundled schema
     │   └── ManifestPipeline           # orchestration + typed Manifest accessor
-    └── interpolation/                 # runtime side: Jinja expression engine
-        ├── JinjaEngine                # jinjava + aliases + literal_eval coercion
-        ├── InterpolatedString         # plain-string fast path + default fallback
-        ├── Macros                     # now_utc, format_datetime, duration, timestamp, ...
-        ├── Filters                    # hash, base64*, regex_*, string, hmac
-        ├── PyFormat                   # strftime/strptime + %s/%ms/%s_as_float/%epoch_microseconds
-        └── PyDateTime                 # Python-datetime-like wrapper (strftime in templates)
+    ├── interpolation/                 # Jinja expression engine
+    │   ├── JinjaEngine                # jinjava + aliases + literal_eval coercion
+    │   ├── InterpolatedString         # plain-string fast path + default fallback
+    │   ├── InterpolatedBoolean        # CDK FALSE_VALUES truthiness
+    │   ├── Macros                     # now_utc, format_datetime, duration, timestamp, ...
+    │   ├── Filters                    # hash, base64*, regex_*, string, hmac
+    │   ├── PyFormat                   # strftime/strptime + %s/%ms/%s_as_float/%epoch_microseconds
+    │   └── PyDateTime                 # Python-datetime-like wrapper (strftime in templates)
+    └── runtime/                       # the read engine
+        ├── StreamSpec                 # one stream's resolved config (rejects P2 features loudly)
+        ├── NeoRequester               # HttpRequester → SaasHttpRequest (collision-raising merges)
+        ├── Authenticator              # ApiKey / Bearer / Basic → headers & query params
+        ├── Paginator                  # DefaultPaginator + 3 strategies + NoPagination
+        ├── DpathExtractor             # field_path walker with * wildcards
+        ├── SchemaSynthesizer          # stream json_schema → Hevo ObjectSchema (CatalogFieldFactory)
+        └── ManifestPollTask           # SaasObjectPollTask: the SimpleRetriever read loop
 
 src/main/resources/
 ├── manifest/declarative_component_schema.yaml   # copied VERBATIM from airbyte-python-cdk
