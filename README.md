@@ -14,8 +14,12 @@ per-stream poll-task classes are replaced by a manifest interpreter ported from 
 |---|---|---|
 | P0 | Manifest pipeline (parse → `$ref` → `$parameters` → schema validation) + Jinja expression engine (macros, filters, Python-faithful coercion) | ✅ done, tested |
 | P1 | Full-refresh read: HttpRequester (collision-raising option merges), ApiKey/Bearer/Basic auth, DpathExtractor, PageIncrement/OffsetIncrement/CursorPagination, schema synthesis → `ObjectSchema`, `CheckStream`, `ManifestPollTask` + `generateTasks` wiring. Milestone: the real source-jotform `forms` stream syncs end-to-end against a mock API. | ✅ done, tested |
-| P2 | Incremental + partitions: DatetimeBasedCursor windowing, offset round-trip, List/Substream partition routers, transformations, record_filter (all currently log a warning and are skipped) | ⬜ |
-| P3 | OAuth, error-handler/backoff fidelity, manifest-store fetch, differential test harness vs the Python CDK | ⬜ |
+| P2 | Incremental + partitions: DatetimeBasedCursor (windowing by `step`/`cursor_granularity`, lookback, MinMaxDatetime clamps, observe/close state, `start_time_option`/`end_time_option` injection), state round-trip through `SimpleOffset` (legacy-CDK `{cursor_field: value}` JSON), List + Substream partition routers (inline full-refresh parent reads), AddFields/RemoveFields, RecordFilter. Milestones: jotform `submissions` (incremental state round-trip) and `questions` (substream fan-out + AddFields) sync end-to-end. | ✅ done, tested |
+| P3 | OAuth, error-handler/backoff fidelity, manifest-store fetch, incremental_dependency + extra_fields on substreams, differential test harness vs the Python CDK | ⬜ |
+
+P2 checkpointing note: one **global** cursor across partitions (Hevo parent-level checkpointing,
+a locked DSL decision) rather than Airbyte's per-partition state; partitioned incremental streams
+re-read partitions from the global cursor.
 
 Out of scope by design: custom Python components (`class_name` → `components.py`), AsyncRetriever,
 dynamic streams. Manifests using those fall back to natively built connectors.
@@ -41,13 +45,16 @@ src/main/java/io/hevo/connector/
     │   ├── PyFormat                   # strftime/strptime + %s/%ms/%s_as_float/%epoch_microseconds
     │   └── PyDateTime                 # Python-datetime-like wrapper (strftime in templates)
     └── runtime/                       # the read engine
-        ├── StreamSpec                 # one stream's resolved config (rejects P2 features loudly)
+        ├── StreamSpec                 # one stream's resolved config
         ├── NeoRequester               # HttpRequester → SaasHttpRequest (collision-raising merges)
         ├── Authenticator              # ApiKey / Bearer / Basic → headers & query params
         ├── Paginator                  # DefaultPaginator + 3 strategies + NoPagination
         ├── DpathExtractor             # field_path walker with * wildcards
+        ├── DatetimeCursor             # DatetimeBasedCursor windows + state + request options
+        ├── PartitionRouters           # List + Substream (inline parent reads)
+        ├── RecordPipeline             # record_filter → AddFields/RemoveFields
         ├── SchemaSynthesizer          # stream json_schema → Hevo ObjectSchema (CatalogFieldFactory)
-        └── ManifestPollTask           # SaasObjectPollTask: the SimpleRetriever read loop
+        └── ManifestPollTask           # SaasObjectPollTask: partitions × windows × pages loop
 
 src/main/resources/
 ├── manifest/declarative_component_schema.yaml   # copied VERBATIM from airbyte-python-cdk

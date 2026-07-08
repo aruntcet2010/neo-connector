@@ -17,6 +17,8 @@ public final class StreamSpec {
     private final List<String> primaryKey;
     private final Map<String, Object> retriever;
     private final Map<String, Object> schema;
+    private final Map<String, Object> incrementalSync;
+    private final List<Object> transformations;
 
     @SuppressWarnings("unchecked")
     public StreamSpec(Map<String, Object> stream) {
@@ -33,22 +35,8 @@ public final class StreamSpec {
             throw new ManifestException(
                     "Stream " + name + ": unsupported retriever type " + retrieverType);
         }
-        if (Components.getMap(retriever, "partition_router") != null) {
-            throw new ManifestException(
-                    "Stream " + name + " uses a partition_router (P2, not supported yet)");
-        }
-        if (Components.getMap(stream, "incremental_sync") != null) {
-            log.warn(
-                    "Stream {}: incremental_sync is not supported yet (P2); reading as full"
-                            + " refresh without date windowing",
-                    name);
-        }
-        if (Components.getList(stream, "transformations") != null) {
-            log.warn("Stream {}: transformations are not applied yet (P2)", name);
-        }
-        if (Components.getMap(recordSelectorOf(retriever), "record_filter") != null) {
-            log.warn("Stream {}: record_filter is not applied yet (P2)", name);
-        }
+        this.incrementalSync = Components.getMap(stream, "incremental_sync");
+        this.transformations = Components.getList(stream, "transformations");
         this.primaryKey = parsePrimaryKey(stream.get("primary_key"));
         Map<String, Object> schemaLoader = Components.getMap(stream, "schema_loader");
         this.schema =
@@ -97,11 +85,19 @@ public final class StreamSpec {
     }
 
     public Map<String, Object> recordSelector() {
-        return recordSelectorOf(retriever);
+        return Components.getMap(retriever, "record_selector");
     }
 
-    private static Map<String, Object> recordSelectorOf(Map<String, Object> retriever) {
-        return Components.getMap(retriever, "record_selector");
+    public Map<String, Object> partitionRouter() {
+        return Components.getMap(retriever, "partition_router");
+    }
+
+    public Map<String, Object> incrementalSync() {
+        return incrementalSync;
+    }
+
+    public List<Object> transformations() {
+        return transformations;
     }
 
     public Map<String, Object> extractor() {

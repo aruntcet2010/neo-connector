@@ -4,6 +4,7 @@ import io.hevo.connector.cdk.saas.http.SaasHttpRequest;
 import io.hevo.connector.neo.interpolation.InterpolatedString;
 import io.hevo.connector.neo.manifest.ManifestException;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -47,23 +48,49 @@ public final class NeoRequester {
         this.httpMethod = method == null ? "GET" : method.toUpperCase();
     }
 
+    /** Per-slice inputs: the stream_slice template context and cursor/router injections. */
+    public record SliceOptions(
+            Map<String, Object> streamSlice,
+            List<Map<RequestOptionSpec.InjectInto, Map<String, Object>>> extraOptions) {
+
+        public static SliceOptions none() {
+            return new SliceOptions(Map.of(), List.of());
+        }
+
+        private Map<String, Object> options(RequestOptionSpec.InjectInto target) {
+            Map<String, Object> merged = new LinkedHashMap<>();
+            for (Map<RequestOptionSpec.InjectInto, Map<String, Object>> source : extraOptions) {
+                Map<String, Object> options = source.get(target);
+                if (options != null) {
+                    merged.putAll(options);
+                }
+            }
+            return merged;
+        }
+    }
+
+    public SaasHttpRequest buildRequest(String streamName, Object pageToken, Paginator paginator) {
+        return buildRequest(streamName, pageToken, paginator, SliceOptions.none());
+    }
+
     public SaasHttpRequest buildRequest(
-            String streamName, Object pageToken, Paginator paginator) {
-        Map<String, Object> context = interpolationContext(pageToken);
+            String streamName, Object pageToken, Paginator paginator, SliceOptions slice) {
+        Map<String, Object> context = interpolationContext(pageToken, slice.streamSlice());
 
         String url = joinUrl(evalToString(urlBase, context), resolvePath(context, pageToken, paginator));
 
         SaasHttpRequest.Builder builder =
                 SaasHttpRequest.builder().method(httpMethod).url(url).objectName(streamName);
 
-        // Query parameters: requester's own + authenticator + paginator. Collisions raise.
+        // Query parameters: requester's own + authenticator + paginator + slice. Collisions raise.
         Map<String, Object> params =
                 mergeOptions(
                         "query parameter",
                         evaluateMapOption("request_parameters", context),
                         new LinkedHashMap<>(authenticator.authQueryParams()),
                         paginator.requestOptions(
-                                RequestOptionSpec.InjectInto.REQUEST_PARAMETER, pageToken));
+                                RequestOptionSpec.InjectInto.REQUEST_PARAMETER, pageToken),
+                        slice.options(RequestOptionSpec.InjectInto.REQUEST_PARAMETER));
         params.forEach((k, v) -> builder.queryParam(k, stringValue(v)));
 
         // Headers: same merge discipline.
@@ -72,24 +99,27 @@ public final class NeoRequester {
                         "header",
                         evaluateMapOption("request_headers", context),
                         new LinkedHashMap<>(authenticator.authHeaders()),
-                        paginator.requestOptions(RequestOptionSpec.InjectInto.HEADER, pageToken));
+                        paginator.requestOptions(RequestOptionSpec.InjectInto.HEADER, pageToken),
+                        slice.options(RequestOptionSpec.InjectInto.HEADER));
         headers.forEach((k, v) -> builder.header(k, stringValue(v)));
 
-        // Bodies (P1: static maps with interpolated values).
+        // Bodies (static maps with interpolated values).
         Map<String, Object> bodyJson =
                 mergeOptions(
                         "body_json",
                         evaluateMapOption("request_body_json", context),
                         Map.of(),
                         paginator.requestOptions(
-                                RequestOptionSpec.InjectInto.BODY_JSON, pageToken));
+                                RequestOptionSpec.InjectInto.BODY_JSON, pageToken),
+                        slice.options(RequestOptionSpec.InjectInto.BODY_JSON));
         Map<String, Object> bodyData =
                 mergeOptions(
                         "body_data",
                         evaluateMapOption("request_body_data", context),
                         Map.of(),
                         paginator.requestOptions(
-                                RequestOptionSpec.InjectInto.BODY_DATA, pageToken));
+                                RequestOptionSpec.InjectInto.BODY_DATA, pageToken),
+                        slice.options(RequestOptionSpec.InjectInto.BODY_DATA));
         if (!bodyJson.isEmpty() && !bodyData.isEmpty()) {
             throw new ManifestException(
                     "HttpRequester declares both request_body_json and request_body_data");
@@ -105,9 +135,10 @@ public final class NeoRequester {
         return builder.build();
     }
 
-    private Map<String, Object> interpolationContext(Object pageToken) {
+    private Map<String, Object> interpolationContext(
+            Object pageToken, Map<String, Object> streamSlice) {
         Map<String, Object> context = new LinkedHashMap<>();
-        context.put("stream_slice", Map.of());
+        context.put("stream_slice", streamSlice == null ? Map.of() : streamSlice);
         context.put(
                 "next_page_token",
                 pageToken == null ? Map.of() : Map.of("next_page_token", pageToken));
