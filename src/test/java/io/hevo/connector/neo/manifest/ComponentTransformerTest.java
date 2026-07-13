@@ -8,14 +8,14 @@ import org.junit.jupiter.api.Test;
 
 class ComponentTransformerTest {
 
-    private final ComponentTransformer transformer = new ComponentTransformer();
+  private final ComponentTransformer transformer = new ComponentTransformer();
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void infersDefaultTypesFromParentFieldIdentifier() {
-        Map<String, Object> stream =
-                ManifestLoader.load(
-                        """
+  @Test
+  @SuppressWarnings("unchecked")
+  void infersDefaultTypesFromParentFieldIdentifier() {
+    Map<String, Object> stream =
+        ManifestLoader.load(
+            """
                         type: DeclarativeStream
                         retriever:
                           requester:
@@ -24,24 +24,21 @@ class ComponentTransformerTest {
                             extractor:
                               field_path: ["data"]
                         """);
-        Map<String, Object> result =
-                transformer.propagateTypesAndParameters("", stream, Map.of());
-        Map<String, Object> retriever = (Map<String, Object>) result.get("retriever");
-        assertEquals("SimpleRetriever", retriever.get("type"));
-        assertEquals(
-                "HttpRequester", ((Map<String, Object>) retriever.get("requester")).get("type"));
-        Map<String, Object> selector = (Map<String, Object>) retriever.get("record_selector");
-        assertEquals("RecordSelector", selector.get("type"));
-        assertEquals(
-                "DpathExtractor", ((Map<String, Object>) selector.get("extractor")).get("type"));
-    }
+    Map<String, Object> result = transformer.propagateTypesAndParameters("", stream, Map.of());
+    Map<String, Object> retriever = (Map<String, Object>) result.get("retriever");
+    assertEquals("SimpleRetriever", retriever.get("type"));
+    assertEquals("HttpRequester", ((Map<String, Object>) retriever.get("requester")).get("type"));
+    Map<String, Object> selector = (Map<String, Object>) retriever.get("record_selector");
+    assertEquals("RecordSelector", selector.get("type"));
+    assertEquals("DpathExtractor", ((Map<String, Object>) selector.get("extractor")).get("type"));
+  }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void parametersPropagateToDescendantsAndCurrentLevelWins() {
-        Map<String, Object> stream =
-                ManifestLoader.load(
-                        """
+  @Test
+  @SuppressWarnings("unchecked")
+  void parametersPropagateToDescendantsAndCurrentLevelWins() {
+    Map<String, Object> stream =
+        ManifestLoader.load(
+            """
                         type: DeclarativeStream
                         $parameters:
                           name: "from_parent"
@@ -54,39 +51,37 @@ class ComponentTransformerTest {
                             type: HttpRequester
                             url_base: "https://api.example.com"
                         """);
-        Map<String, Object> result =
-                transformer.propagateTypesAndParameters("", stream, Map.of());
-        // Parameters materialize as fields on the owning component.
-        assertEquals("from_parent", result.get("name"));
-        Map<String, Object> retriever = (Map<String, Object>) result.get("retriever");
-        assertEquals("child_value", retriever.get("shared"));
-        // And keep flowing to descendants.
-        Map<String, Object> requester = (Map<String, Object>) retriever.get("requester");
-        assertEquals("child_value", requester.get("shared"));
-        assertEquals("from_parent", requester.get("name"));
-    }
+    Map<String, Object> result = transformer.propagateTypesAndParameters("", stream, Map.of());
+    // Parameters materialize as fields on the owning component.
+    assertEquals("from_parent", result.get("name"));
+    Map<String, Object> retriever = (Map<String, Object>) result.get("retriever");
+    assertEquals("child_value", retriever.get("shared"));
+    // And keep flowing to descendants.
+    Map<String, Object> requester = (Map<String, Object>) retriever.get("requester");
+    assertEquals("child_value", requester.get("shared"));
+    assertEquals("from_parent", requester.get("name"));
+  }
 
-    @Test
-    void existingFieldsTakePrecedenceOverParameters() {
-        Map<String, Object> component =
-                ManifestLoader.load(
-                        """
+  @Test
+  void existingFieldsTakePrecedenceOverParameters() {
+    Map<String, Object> component =
+        ManifestLoader.load(
+            """
                         type: DeclarativeStream
                         name: "explicit"
                         $parameters:
                           name: "from_parameters"
                         """);
-        Map<String, Object> result =
-                transformer.propagateTypesAndParameters("", component, Map.of());
-        assertEquals("explicit", result.get("name"));
-    }
+    Map<String, Object> result = transformer.propagateTypesAndParameters("", component, Map.of());
+    assertEquals("explicit", result.get("name"));
+  }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void jsonSchemaObjectsAreLeftUntouched() {
-        Map<String, Object> component =
-                ManifestLoader.load(
-                        """
+  @Test
+  @SuppressWarnings("unchecked")
+  void jsonSchemaObjectsAreLeftUntouched() {
+    Map<String, Object> component =
+        ManifestLoader.load(
+            """
                         type: DeclarativeStream
                         $parameters:
                           name: "s"
@@ -98,15 +93,12 @@ class ComponentTransformerTest {
                               id:
                                 type: string
                         """);
-        Map<String, Object> result =
-                transformer.propagateTypesAndParameters("", component, Map.of());
-        Map<String, Object> schema =
-                (Map<String, Object>)
-                        ((Map<String, Object>) result.get("schema_loader")).get("schema");
-        assertFalse(schema.containsKey("name"), "parameters must not leak into json schemas");
-        Map<String, Object> idProperty =
-                (Map<String, Object>)
-                        ((Map<String, Object>) schema.get("properties")).get("id");
-        assertFalse(idProperty.containsKey("$parameters"));
-    }
+    Map<String, Object> result = transformer.propagateTypesAndParameters("", component, Map.of());
+    Map<String, Object> schema =
+        (Map<String, Object>) ((Map<String, Object>) result.get("schema_loader")).get("schema");
+    assertFalse(schema.containsKey("name"), "parameters must not leak into json schemas");
+    Map<String, Object> idProperty =
+        (Map<String, Object>) ((Map<String, Object>) schema.get("properties")).get("id");
+    assertFalse(idProperty.containsKey("$parameters"));
+  }
 }

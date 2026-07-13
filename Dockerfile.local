@@ -1,0 +1,15 @@
+FROM hevo/carbon:debian-13.5.temurin-17-jdk
+
+ARG VERSION
+
+WORKDIR /app
+
+COPY ./build/libs/neo-connector-${VERSION}-all.jar connector.jar
+COPY ./docker/logback.xml logback.xml
+COPY ./docker/start.sh start.sh
+
+RUN chmod +x start.sh
+
+EXPOSE 5050
+
+ENTRYPOINT ["/app/start.sh"]

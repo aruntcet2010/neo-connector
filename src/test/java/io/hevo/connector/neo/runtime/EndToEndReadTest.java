@@ -19,30 +19,30 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Full-path test: manifest YAML → pipeline → StreamSpec → ManifestPollTask read loop against a
- * mock HTTP API, asserting both the emitted records and the outbound request shapes (auth
- * injection, pagination parameters).
+ * Full-path test: manifest YAML → pipeline → StreamSpec → ManifestPollTask read loop against a mock
+ * HTTP API, asserting both the emitted records and the outbound request shapes (auth injection,
+ * pagination parameters).
  */
 class EndToEndReadTest {
 
-    private MockWebServer server;
-    private SaasHttpClient client;
+  private MockWebServer server;
+  private SaasHttpClient client;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        server = new MockWebServer();
-        server.start();
-        client = SaasHttpClient.create();
-    }
+  @BeforeEach
+  void setUp() throws Exception {
+    server = new MockWebServer();
+    server.start();
+    client = SaasHttpClient.create();
+  }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        client.close();
-        server.shutdown();
-    }
+  @AfterEach
+  void tearDown() throws Exception {
+    client.close();
+    server.shutdown();
+  }
 
-    private String manifest() {
-        return """
+  private String manifest() {
+    return """
                 version: 4.6.2
                 type: DeclarativeSource
                 check:
@@ -111,63 +111,62 @@ class EndToEndReadTest {
                       api_key:
                         type: string
                 """
-                .formatted(server.url("/").toString().replaceAll("/$", ""));
-    }
+        .formatted(server.url("/").toString().replaceAll("/$", ""));
+  }
 
-    private StreamSpec itemsStream() {
-        ManifestPipeline.Manifest parsed = new ManifestPipeline().process(manifest());
-        return new StreamSpec(parsed.stream("items"));
-    }
+  private StreamSpec itemsStream() {
+    ManifestPipeline.Manifest parsed = new ManifestPipeline().process(manifest());
+    return new StreamSpec(parsed.stream("items"));
+  }
 
-    @Test
-    void readsAllPagesWithAuthAndPagination() throws Exception {
-        server.enqueue(
-                new MockResponse()
-                        .setBody(
-                                "{\"content\": [{\"id\": 1, \"name\": \"a\"}, {\"id\": 2,"
-                                        + " \"name\": \"b\"}]}"));
-        server.enqueue(new MockResponse().setBody("{\"content\": [{\"id\": 3}]}"));
+  @Test
+  void readsAllPagesWithAuthAndPagination() throws Exception {
+    server.enqueue(
+        new MockResponse()
+            .setBody(
+                "{\"content\": [{\"id\": 1, \"name\": \"a\"}, {\"id\": 2,"
+                    + " \"name\": \"b\"}]}"));
+    server.enqueue(new MockResponse().setBody("{\"content\": [{\"id\": 3}]}"));
 
-        Map<String, Object> config = Map.of("api_key", "secret-token", "workspace", "w1");
-        ManifestPollTask task =
-                new ManifestPollTask(null, CategoryType.HISTORICAL, itemsStream(), client, config);
+    Map<String, Object> config = Map.of("api_key", "secret-token", "workspace", "w1");
+    ManifestPollTask task =
+        new ManifestPollTask(null, CategoryType.HISTORICAL, itemsStream(), client, config);
 
-        List<Object> records = new ArrayList<>();
-        long count = task.readStream(records::add);
+    List<Object> records = new ArrayList<>();
+    long count = task.readStream(records::add);
 
-        assertEquals(3, count);
-        assertEquals(Map.of("id", 3), records.get(2));
+    assertEquals(3, count);
+    assertEquals(Map.of("id", 3), records.get(2));
 
-        // First request: auth + config interpolation + page size, no offset yet.
-        RecordedRequest first = server.takeRequest();
-        assertEquals("/v1/items?workspace=w1&apiKey=secret-token&limit=2", first.getPath());
+    // First request: auth + config interpolation + page size, no offset yet.
+    RecordedRequest first = server.takeRequest();
+    assertEquals("/v1/items?workspace=w1&apiKey=secret-token&limit=2", first.getPath());
 
-        // Second request: offset token injected after a full page.
-        RecordedRequest second = server.takeRequest();
-        assertTrue(second.getPath().contains("offset=2"), second.getPath());
-        assertTrue(second.getPath().contains("apiKey=secret-token"), second.getPath());
-    }
+    // Second request: offset token injected after a full page.
+    RecordedRequest second = server.takeRequest();
+    assertTrue(second.getPath().contains("offset=2"), second.getPath());
+    assertTrue(second.getPath().contains("apiKey=secret-token"), second.getPath());
+  }
 
-    @Test
-    void schemaSynthesisFromInlineSchema() {
-        ObjectSchema schema = SchemaSynthesizer.synthesize(itemsStream());
-        assertEquals("items", schema.objectDetail().getTableFullyQualifiedName());
-        assertEquals(4, schema.fields().size());
-        var byName =
-                schema.fields().stream()
-                        .collect(java.util.stream.Collectors.toMap(f -> f.name(), f -> f));
-        assertNotNull(byName.get("id"));
-        assertEquals("hudt_long", byName.get("id").logicalType());
-        assertEquals("hudt_varchar", byName.get("name").logicalType());
-        assertEquals("hudt_date_time_tz", byName.get("created_at").logicalType());
-        assertEquals("hudt_json", byName.get("settings").logicalType());
-    }
+  @Test
+  void schemaSynthesisFromInlineSchema() {
+    ObjectSchema schema = SchemaSynthesizer.synthesize(itemsStream());
+    assertEquals("items", schema.objectDetail().getTableFullyQualifiedName());
+    assertEquals(4, schema.fields().size());
+    var byName =
+        schema.fields().stream().collect(java.util.stream.Collectors.toMap(f -> f.name(), f -> f));
+    assertNotNull(byName.get("id"));
+    assertEquals("hudt_long", byName.get("id").logicalType());
+    assertEquals("hudt_varchar", byName.get("name").logicalType());
+    assertEquals("hudt_date_time_tz", byName.get("created_at").logicalType());
+    assertEquals("hudt_json", byName.get("settings").logicalType());
+  }
 
-    @Test
-    void bearerAuthGoesToHeader() throws Exception {
-        server.enqueue(new MockResponse().setBody("{\"content\": []}"));
-        String yaml =
-                """
+  @Test
+  void bearerAuthGoesToHeader() throws Exception {
+    server.enqueue(new MockResponse().setBody("{\"content\": []}"));
+    String yaml =
+        """
                 version: 4.6.2
                 type: DeclarativeSource
                 check:
@@ -196,14 +195,14 @@ class EndToEndReadTest {
                     type: object
                     properties: {}
                 """
-                        .formatted(server.url("/").toString().replaceAll("/$", ""));
-        ManifestPipeline.Manifest parsed = new ManifestPipeline().process(yaml);
-        StreamSpec stream = new StreamSpec(parsed.stream("things"));
-        ManifestPollTask task =
-                new ManifestPollTask(
-                        null, CategoryType.HISTORICAL, stream, client, Map.of("token", "t0k3n"));
-        assertEquals(0, task.readStream(r -> {}));
-        RecordedRequest request = server.takeRequest();
-        assertEquals("Bearer t0k3n", request.getHeader("Authorization"));
-    }
+            .formatted(server.url("/").toString().replaceAll("/$", ""));
+    ManifestPipeline.Manifest parsed = new ManifestPipeline().process(yaml);
+    StreamSpec stream = new StreamSpec(parsed.stream("things"));
+    ManifestPollTask task =
+        new ManifestPollTask(
+            null, CategoryType.HISTORICAL, stream, client, Map.of("token", "t0k3n"));
+    assertEquals(0, task.readStream(r -> {}));
+    RecordedRequest request = server.takeRequest();
+    assertEquals("Bearer t0k3n", request.getHeader("Authorization"));
+  }
 }

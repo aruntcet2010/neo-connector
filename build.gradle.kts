@@ -48,6 +48,15 @@ tasks.test {
     maxHeapSize = "1g"
 }
 
+// Dev tool: run a manifest against the real API. See LocalRunner for usage.
+tasks.register<JavaExec>("runManifest") {
+    group = "neo"
+    description = "Run a manifest through the interpreter: --args=\"--manifest m.yaml [--config c.json --stream s --limit N]\""
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("io.hevo.connector.neo.LocalRunner")
+    maxHeapSize = "1g"
+}
+
 // Extract framework sources for reference
 tasks.register<Sync>("extractFrameworkSources") {
     notCompatibleWithConfigurationCache("Uses zipTree which captures script references")
