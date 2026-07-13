@@ -1,0 +1,58 @@
+field_configuration:
+  IS_PK:
+    type: CHECKBOX
+    order: 3
+    description: The column(s) used as the primary key in the Destination table
+    is_editable: false
+    display_name: Primary Key
+    additional_config:
+  SOURCE_FIELD:
+    type: TEXT
+    order: 1
+    description: The list of columns available in the object
+    is_editable: false
+    display_name: Fields
+    additional_config:
+  DESTINATION_FIELD:
+    type: TEXT
+    order: 2
+    description: The column names defined in the Destination table
+    is_editable: false
+    display_name: Destination Fields
+    additional_config:
+object_configuration:
+  K0:
+    type: TEXT
+    order: 1
+    description: The name of the object you are ingesting from
+    is_editable: false
+    display_name: Objects
+    additional_config:
+  KEYS:
+    type: TEXT
+    order: 5
+    description: The primary key defined for the Destination table
+    is_editable: false
+    display_name: Keys
+    additional_config:
+      PK:
+        type: TEXT
+        order: 1
+        description: Primary key for the destination table
+        is_editable: false
+        display_name: Primary Key
+        additional_config:
+  LOAD_MODE:
+    type: TEXT
+    order: 4
+    description: The mode by which Hevo must load data to the Destination
+    is_editable: false
+    display_name: Load Mode
+    additional_config:
+  FIELD_COUNT:
+    type: TEXT
+    order: 6
+    description: The number of columns available in the object
+    is_editable: false
+    display_name: Fields
+    additional_config:

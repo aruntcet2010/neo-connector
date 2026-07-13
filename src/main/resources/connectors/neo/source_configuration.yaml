@@ -31,3 +31,17 @@ fields:
     size: 100
     helper_text:
       text: "Values for the fields declared in the manifest spec, as a JSON object"
+
+  - name: manifest_yaml
+    display_name: "Manifest YAML"
+    description: "Inline Airbyte declarative manifest to run (dev-only override; generated connectors bundle their manifest)"
+    type: STRING
+    required: false
+    is_eligible_for_edit: true
+    group:
+      type: CONNECTION
+      field_order: 3
+    importance: HIGH
+    size: 100
+    helper_text:
+      text: "Paste a full manifest.yaml to override the bundled manifest"

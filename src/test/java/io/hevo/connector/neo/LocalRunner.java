@@ -28,108 +28,107 @@ import java.util.Map;
  */
 public final class LocalRunner {
 
-    private static final ObjectMapper JSON = new ObjectMapper();
+  private static final ObjectMapper JSON = new ObjectMapper();
 
-    /** Thrown by the record consumer to stop a read after --limit records. */
-    private static final class LimitReached extends RuntimeException {}
+  /** Thrown by the record consumer to stop a read after --limit records. */
+  private static final class LimitReached extends RuntimeException {}
 
-    public static void main(String[] args) throws Exception {
-        Map<String, String> opts = parseArgs(args);
-        String manifestPath = require(opts, "manifest");
+  public static void main(String[] args) throws Exception {
+    Map<String, String> opts = parseArgs(args);
+    String manifestPath = require(opts, "manifest");
 
-        System.out.println("=== Loading manifest: " + manifestPath);
-        ManifestPipeline.Manifest manifest =
-                new ManifestPipeline().process(Files.readString(Path.of(manifestPath)));
-        System.out.println("Manifest version: " + manifest.version());
+    System.out.println("=== Loading manifest: " + manifestPath);
+    ManifestPipeline.Manifest manifest =
+        new ManifestPipeline().process(Files.readString(Path.of(manifestPath)));
+    System.out.println("Manifest version: " + manifest.version());
 
-        List<StreamSpec> specs = new ArrayList<>();
-        for (Map<String, Object> stream : manifest.streams()) {
-            try {
-                StreamSpec spec = new StreamSpec(stream);
-                specs.add(spec);
-                System.out.printf(
-                        "  stream: %-28s pk=%s incremental=%s substream=%s%n",
-                        spec.name(),
-                        spec.primaryKey(),
-                        spec.incrementalSync() != null,
-                        spec.partitionRouter() != null);
-            } catch (RuntimeException e) {
-                System.out.printf("  stream: UNSUPPORTED — %s%n", e.getMessage());
-            }
-        }
-        System.out.println("=== Validation OK (" + specs.size() + " supported streams)");
+    List<StreamSpec> specs = new ArrayList<>();
+    for (Map<String, Object> stream : manifest.streams()) {
+      try {
+        StreamSpec spec = new StreamSpec(stream);
+        specs.add(spec);
+        System.out.printf(
+            "  stream: %-28s pk=%s incremental=%s substream=%s%n",
+            spec.name(),
+            spec.primaryKey(),
+            spec.incrementalSync() != null,
+            spec.partitionRouter() != null);
+      } catch (RuntimeException e) {
+        System.out.printf("  stream: UNSUPPORTED — %s%n", e.getMessage());
+      }
+    }
+    System.out.println("=== Validation OK (" + specs.size() + " supported streams)");
 
-        if (!opts.containsKey("config")) {
-            System.out.println("No --config given; stopping after validation.");
-            return;
-        }
-
-        Map<String, Object> config =
-                JSON.readValue(
-                        Files.readString(Path.of(opts.get("config"))),
-                        new TypeReference<Map<String, Object>>() {});
-        int limit = Integer.parseInt(opts.getOrDefault("limit", "10"));
-        String only = opts.get("stream");
-        String state = opts.get("state");
-
-        try (SaasHttpClient client = SaasHttpClient.create()) {
-            for (StreamSpec spec : specs) {
-                if (only != null && !only.equals(spec.name())) {
-                    continue;
-                }
-                System.out.println("\n=== Reading stream: " + spec.name() + " (limit " + limit + ")");
-                try {
-                    // Show the schema we'd declare to Hevo.
-                    var schema = SchemaSynthesizer.synthesize(spec);
-                    System.out.println("    fields: " + schema.fields().size());
-                } catch (RuntimeException e) {
-                    System.out.println("    schema synthesis failed: " + e.getMessage());
-                }
-                ManifestPollTask task =
-                        new ManifestPollTask(null, CategoryType.HISTORICAL, spec, client, config);
-                List<Map<String, Object>> records = new ArrayList<>();
-                ManifestPollTask.ReadResult result;
-                try {
-                    result =
-                            task.read(
-                                    record -> {
-                                        records.add(record);
-                                        if (records.size() >= limit) {
-                                            throw new LimitReached();
-                                        }
-                                    },
-                                    state);
-                } catch (LimitReached stopped) {
-                    result = new ManifestPollTask.ReadResult(records.size(), null);
-                    System.out.println("    (stopped at limit; state not closed)");
-                } catch (RuntimeException e) {
-                    System.out.println("    READ FAILED: " + e);
-                    continue;
-                }
-                for (Map<String, Object> record : records) {
-                    System.out.println(JSON.writeValueAsString(record));
-                }
-                System.out.println(
-                        "    records=" + result.recordCount() + " state=" + result.stateJson());
-            }
-        }
+    if (!opts.containsKey("config")) {
+      System.out.println("No --config given; stopping after validation.");
+      return;
     }
 
-    private static Map<String, String> parseArgs(String[] args) {
-        Map<String, String> opts = new LinkedHashMap<>();
-        for (int i = 0; i < args.length - 1; i++) {
-            if (args[i].startsWith("--")) {
-                opts.put(args[i].substring(2), args[i + 1]);
-            }
-        }
-        return opts;
-    }
+    Map<String, Object> config =
+        JSON.readValue(
+            Files.readString(Path.of(opts.get("config"))),
+            new TypeReference<Map<String, Object>>() {});
+    int limit = Integer.parseInt(opts.getOrDefault("limit", "10"));
+    String only = opts.get("stream");
+    String state = opts.get("state");
 
-    private static String require(Map<String, String> opts, String key) {
-        String value = opts.get(key);
-        if (value == null) {
-            throw new IllegalArgumentException("Missing required option --" + key);
+    try (SaasHttpClient client = SaasHttpClient.create()) {
+      for (StreamSpec spec : specs) {
+        if (only != null && !only.equals(spec.name())) {
+          continue;
         }
-        return value;
+        System.out.println("\n=== Reading stream: " + spec.name() + " (limit " + limit + ")");
+        try {
+          // Show the schema we'd declare to Hevo.
+          var schema = SchemaSynthesizer.synthesize(spec);
+          System.out.println("    fields: " + schema.fields().size());
+        } catch (RuntimeException e) {
+          System.out.println("    schema synthesis failed: " + e.getMessage());
+        }
+        ManifestPollTask task =
+            new ManifestPollTask(null, CategoryType.HISTORICAL, spec, client, config);
+        List<Map<String, Object>> records = new ArrayList<>();
+        ManifestPollTask.ReadResult result;
+        try {
+          result =
+              task.read(
+                  record -> {
+                    records.add(record);
+                    if (records.size() >= limit) {
+                      throw new LimitReached();
+                    }
+                  },
+                  state);
+        } catch (LimitReached stopped) {
+          result = new ManifestPollTask.ReadResult(records.size(), null);
+          System.out.println("    (stopped at limit; state not closed)");
+        } catch (RuntimeException e) {
+          System.out.println("    READ FAILED: " + e);
+          continue;
+        }
+        for (Map<String, Object> record : records) {
+          System.out.println(JSON.writeValueAsString(record));
+        }
+        System.out.println("    records=" + result.recordCount() + " state=" + result.stateJson());
+      }
     }
+  }
+
+  private static Map<String, String> parseArgs(String[] args) {
+    Map<String, String> opts = new LinkedHashMap<>();
+    for (int i = 0; i < args.length - 1; i++) {
+      if (args[i].startsWith("--")) {
+        opts.put(args[i].substring(2), args[i + 1]);
+      }
+    }
+    return opts;
+  }
+
+  private static String require(Map<String, String> opts, String key) {
+    String value = opts.get(key);
+    if (value == null) {
+      throw new IllegalArgumentException("Missing required option --" + key);
+    }
+    return value;
+  }
 }

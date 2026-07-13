@@ -1,0 +1,1618 @@
+version: 7.23.4
+type: DeclarativeSource
+check:
+  type: CheckStream
+  stream_names:
+  - offer_profiles
+definitions:
+  streams:
+    addresses:
+      type: DeclarativeStream
+      name: addresses
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /addresses/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          pagination_strategy:
+            type: CursorPagination
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: updated
+        cursor_datetime_formats:
+        - '%Y-%m-%d %H:%M:%S'
+        datetime_format: '%Y-%m-%dT%H:%M:%S'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '1970-01-01T00:00:00Z'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_time_option:
+          type: RequestOption
+          inject_into: request_parameter
+          field_name: updated_start
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            customer:
+              type:
+              - string
+              - 'null'
+            public_id:
+              type:
+              - string
+              - 'null'
+            label:
+              type:
+              - string
+              - 'null'
+            first_name:
+              type:
+              - string
+              - 'null'
+            last_name:
+              type:
+              - string
+              - 'null'
+            company_name:
+              type:
+              - string
+              - 'null'
+            address:
+              type:
+              - string
+              - 'null'
+            address2:
+              type:
+              - string
+              - 'null'
+            city:
+              type:
+              - string
+              - 'null'
+            state_province_code:
+              type:
+              - string
+              - 'null'
+            zip_postal_code:
+              type:
+              - string
+              - 'null'
+            phone:
+              type:
+              - string
+              - 'null'
+            fax:
+              type:
+              - string
+              - 'null'
+            country_code:
+              type:
+              - string
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            updated:
+              type:
+              - string
+              - 'null'
+            token_id:
+              type:
+              - string
+              - 'null'
+            store_public_id:
+              type:
+              - string
+              - 'null'
+    cancellation_reasons:
+      type: DeclarativeStream
+      name: cancellation_reasons
+      primary_key:
+      - cancel_reason
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /merchant/cancel_reason/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          pagination_strategy:
+            type: CursorPagination
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            cancel_reason:
+              type:
+              - integer
+              - 'null'
+            application:
+              type:
+              - string
+              - 'null'
+    customers:
+      type: DeclarativeStream
+      name: customers
+      primary_key:
+      - merchant_user_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /customers/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: last_updated
+        cursor_datetime_formats:
+        - '%Y-%m-%d %H:%M:%S'
+        datetime_format: '%Y-%m-%dT%H:%M:%S'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '1970-01-01T00:00:00Z'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_time_option:
+          type: RequestOption
+          inject_into: request_parameter
+          field_name: updated_start
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            merchant:
+              type:
+              - string
+              - 'null'
+            id:
+              type:
+              - integer
+              - 'null'
+            merchant_user_id:
+              type:
+              - string
+              - 'null'
+            session_id:
+              type:
+              - string
+              - 'null'
+            user_token_id:
+              type:
+              - string
+              - 'null'
+            first_name:
+              type:
+              - string
+              - 'null'
+            last_name:
+              type:
+              - string
+              - 'null'
+            email:
+              type:
+              - string
+              - 'null'
+            phone_number:
+              type:
+              - string
+              - 'null'
+            phone_type:
+              type:
+              - integer
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            last_updated:
+              type:
+              - string
+              - 'null'
+            last_login:
+              type:
+              - string
+              - 'null'
+            extra_data:
+              type:
+              - string
+              - 'null'
+            locale:
+              type:
+              - integer
+              - string
+              - 'null'
+            price_code:
+              type:
+              - string
+              - 'null'
+    entitlements:
+      type: DeclarativeStream
+      name: entitlements
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /entitlements/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+          request_parameters:
+            merchant: '{{ config[''merchant''] }}'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          pagination_strategy:
+            type: CursorPagination
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            merchant:
+              type:
+              - string
+              - 'null'
+            public_id:
+              type:
+              - string
+              - 'null'
+            merchant_user_id:
+              type:
+              - string
+              - 'null'
+            initial_activation_date:
+              type:
+              - string
+              - 'null'
+            latest_activation_date:
+              type:
+              - string
+              - 'null'
+            grace_period:
+              type:
+              - integer
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            access_type:
+              type:
+              - string
+              - 'null'
+            expiration:
+              type:
+              - string
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            last_updated:
+              type:
+              - string
+              - 'null'
+            resource:
+              type:
+              - object
+              - 'null'
+            grantees:
+              type:
+              - array
+              - 'null'
+    items:
+      type: DeclarativeStream
+      name: items
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /items/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+          request_parameters:
+            include_incentives: 'true'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          pagination_strategy:
+            type: CursorPagination
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: order_updated
+        cursor_datetime_formats:
+        - '%Y-%m-%d %H:%M:%S'
+        datetime_format: '%Y-%m-%dT%H:%M:%S'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '1970-01-01T00:00:00Z'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_time_option:
+          type: RequestOption
+          inject_into: request_parameter
+          field_name: order_updated_start
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            order:
+              type:
+              - string
+              - 'null'
+            offer:
+              type:
+              - string
+              - 'null'
+            subscription:
+              type:
+              - string
+              - 'null'
+            product:
+              type:
+              - string
+              - 'null'
+            components:
+              type:
+              - array
+              - 'null'
+            subscription_component:
+              type:
+              - string
+              - 'null'
+            quantity:
+              type:
+              - integer
+              - 'null'
+            price:
+              type:
+              - string
+              - 'null'
+            extra_cost:
+              type:
+              - string
+              - 'null'
+            total_price:
+              type:
+              - string
+              - 'null'
+            one_time:
+              type:
+              - boolean
+              - 'null'
+            order_updated:
+              type:
+              - string
+              - 'null'
+            frozen:
+              type:
+              - boolean
+              - 'null'
+            gift_context:
+              type:
+              - object
+              - 'null'
+            incentives:
+              type:
+              - array
+              - 'null'
+    offer_profiles:
+      type: DeclarativeStream
+      name: offer_profiles
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /offer_profiles/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+          request_parameters:
+            offer_profile_category: all_with_standard_flex_incentives
+            status: all
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          pagination_strategy:
+            type: CursorPagination
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            name:
+              type:
+              - string
+              - 'null'
+            merchant:
+              type:
+              - string
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            status:
+              type:
+              - string
+              - 'null'
+            weight:
+              type:
+              - integer
+              - 'null'
+            offers:
+              type:
+              - array
+              - 'null'
+            recurring_coupon:
+              type:
+              - object
+              - 'null'
+            initial_coupon:
+              type:
+              - object
+              - 'null'
+    one_time_incentives:
+      type: DeclarativeStream
+      name: one_time_incentives
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /one_time_incentives/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: last_updated
+        cursor_datetime_formats:
+        - '%Y-%m-%d %H:%M:%S'
+        datetime_format: '%Y-%m-%dT%H:%M:%S'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '1970-01-01T00:00:00Z'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_time_option:
+          type: RequestOption
+          inject_into: request_parameter
+          field_name: last_updated_start
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            external_code:
+              type:
+              - string
+              - 'null'
+            description:
+              type:
+              - string
+              - 'null'
+            merchant:
+              type:
+              - string
+              - 'null'
+            customer:
+              type:
+              - string
+              - 'null'
+            order:
+              type:
+              - string
+              - 'null'
+            item:
+              type:
+              - string
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            last_updated:
+              type:
+              - string
+              - 'null'
+            applied_at:
+              type:
+              - string
+              - 'null'
+            incentive:
+              type:
+              - object
+              - 'null'
+    orders:
+      type: DeclarativeStream
+      name: orders
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /orders/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+          request_parameters:
+            include_has_plan: 'true'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: updated
+        cursor_datetime_formats:
+        - '%Y-%m-%d %H:%M:%S'
+        datetime_format: '%Y-%m-%dT%H:%M:%S'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '1970-01-01T00:00:00Z'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_time_option:
+          type: RequestOption
+          inject_into: request_parameter
+          field_name: updated_start
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            merchant:
+              type:
+              - string
+              - 'null'
+            customer:
+              type:
+              - string
+              - 'null'
+            payment:
+              type:
+              - string
+              - 'null'
+            shipping_address:
+              type:
+              - string
+              - 'null'
+            currency_code:
+              type:
+              - string
+              - 'null'
+            sub_total:
+              type:
+              - string
+              - 'null'
+            tax_total:
+              type:
+              - string
+              - 'null'
+            shipping_total:
+              type:
+              - string
+              - 'null'
+            discount_total:
+              type:
+              - string
+              - 'null'
+            total:
+              type:
+              - string
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            updated:
+              type:
+              - string
+              - 'null'
+            place:
+              type:
+              - string
+              - 'null'
+            cancelled:
+              type:
+              - string
+              - 'null'
+            tries:
+              type:
+              - integer
+              - 'null'
+            generic_error_count:
+              type:
+              - integer
+              - 'null'
+            status:
+              type:
+              - integer
+              - 'null'
+            type:
+              type:
+              - integer
+              - 'null'
+            order_merchant_id:
+              type:
+              - string
+              - 'null'
+            rejected_message:
+              type:
+              - string
+              - 'null'
+            extra_data:
+              type:
+              - string
+              - 'null'
+            locked:
+              type:
+              - boolean
+              - 'null'
+            oos_free_shipping:
+              type:
+              - boolean
+              - 'null'
+            has_plan:
+              type:
+              - boolean
+              - 'null'
+    payments:
+      type: DeclarativeStream
+      name: payments
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /payments/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            customer:
+              type:
+              - string
+              - 'null'
+            billing_address:
+              type:
+              - string
+              - 'null'
+            cc_number_ending:
+              type:
+              - string
+              - 'null'
+            label:
+              type:
+              - string
+              - 'null'
+            token_id:
+              type:
+              - string
+              - 'null'
+            cc_holder:
+              type:
+              - string
+              - 'null'
+            cc_type:
+              type:
+              - integer
+              - 'null'
+            cc_exp_date:
+              type:
+              - string
+              - 'null'
+            payment_method:
+              type:
+              - string
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            last_updated:
+              type:
+              - string
+              - 'null'
+    product_groups:
+      type: DeclarativeStream
+      name: product_groups
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /product_groups/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            name:
+              type:
+              - string
+              - 'null'
+            group_type:
+              type:
+              - string
+              - 'null'
+    products:
+      type: DeclarativeStream
+      name: products
+      primary_key:
+      - external_product_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /products/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+          request_parameters:
+            autoship_enabled: all
+            allow_discontinued: 'true'
+            include_product_selection_rules: 'true'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            merchant:
+              type:
+              - string
+              - 'null'
+            groups:
+              type:
+              - array
+              - 'null'
+              items:
+                type:
+                - object
+                - 'null'
+                properties:
+                  name:
+                    type:
+                    - string
+                    - 'null'
+                  group_type:
+                    type:
+                    - string
+                    - 'null'
+            name:
+              type:
+              - string
+              - 'null'
+            price:
+              type:
+              - string
+              - 'null'
+            image_url:
+              type:
+              - string
+              - 'null'
+            detail_url:
+              type:
+              - string
+              - 'null'
+            external_product_id:
+              type:
+              - string
+              - 'null'
+            sku:
+              type:
+              - string
+              - 'null'
+            autoship_enabled:
+              type:
+              - boolean
+              - 'null'
+            prepaid_eligible:
+              type:
+              - boolean
+              - 'null'
+            premier_enabled:
+              type:
+              - number
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            last_update:
+              type:
+              - string
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            discontinued:
+              type:
+              - boolean
+              - 'null'
+            extra_data:
+              type:
+              - string
+              - 'null'
+            product_type:
+              type:
+              - string
+              - 'null'
+            autoship_by_default:
+              type:
+              - boolean
+              - 'null'
+            every:
+              type:
+              - integer
+              - 'null'
+            every_period:
+              type:
+              - integer
+              - 'null'
+            offer_profile:
+              type:
+              - string
+              - 'null'
+            incentive_group:
+              type:
+              - string
+              - 'null'
+            product_selection_rules:
+              type:
+              - array
+              - 'null'
+              items:
+                type:
+                - object
+                - 'null'
+                properties:
+                  public_id:
+                    type:
+                    - string
+                    - 'null'
+                  selection_rule_type:
+                    type:
+                    - string
+                    - 'null'
+                  product_selection_list_elements:
+                    type:
+                    - array
+                    - 'null'
+                    items:
+                      type:
+                      - object
+                      - 'null'
+                      properties:
+                        public_id:
+                          type:
+                          - string
+                          - 'null'
+                        product:
+                          type:
+                          - string
+                          - 'null'
+                        starting_ordinal:
+                          type:
+                          - number
+                          - 'null'
+                        starting_date:
+                          type:
+                          - string
+                          - 'null'
+                  configuration:
+                    type:
+                    - object
+                    - 'null'
+                    properties:
+                      reveal_moment:
+                        type:
+                        - string
+                        - 'null'
+                      cyclical_rotation_enabled:
+                        type:
+                        - boolean
+                        - 'null'
+                      pricing_policy:
+                        type:
+                        - string
+                        - 'null'
+    product_relationships:
+      type: DeclarativeStream
+      name: product_relationships
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /products/{{ stream_partition.external_product_id }}/relationships/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path: []
+        paginator:
+          type: NoPagination
+        partition_router:
+          type: SubstreamPartitionRouter
+          parent_stream_configs:
+          - type: ParentStreamConfig
+            parent_key: external_product_id
+            partition_field: external_product_id
+            stream:
+              $ref: '#/definitions/streams/products'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            relationship_type:
+              type:
+              - string
+              - 'null'
+            from_product:
+              type:
+              - string
+              - 'null'
+            to_product:
+              type:
+              - string
+              - 'null'
+    resources:
+      type: DeclarativeStream
+      name: resources
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /resources/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          pagination_strategy:
+            type: CursorPagination
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            merchant:
+              type:
+              - string
+              - 'null'
+            name:
+              type:
+              - string
+              - 'null'
+            external_resource_id:
+              type:
+              - string
+              - 'null'
+            description:
+              type:
+              - string
+              - 'null'
+            image_url:
+              type:
+              - string
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            last_updated:
+              type:
+              - string
+              - 'null'
+    subscriptions:
+      type: DeclarativeStream
+      name: subscriptions
+      primary_key:
+      - public_id
+      retriever:
+        type: SimpleRetriever
+        requester:
+          type: HttpRequester
+          url_base: https://restapi.ordergroove.com
+          path: /subscriptions/
+          http_method: GET
+          authenticator:
+            type: ApiKeyAuthenticator
+            api_token: '{{ config[''api_key''] }}'
+            inject_into:
+              type: RequestOption
+              inject_into: header
+              field_name: x-api-key
+          request_headers:
+            X-OG-API-VERSION: '2'
+        record_selector:
+          type: RecordSelector
+          extractor:
+            type: DpathExtractor
+            field_path:
+            - results
+        paginator:
+          type: DefaultPaginator
+          page_token_option:
+            type: RequestPath
+          page_size_option:
+            type: RequestOption
+            inject_into: request_parameter
+            field_name: page_size
+          pagination_strategy:
+            type: CursorPagination
+            page_size: 100
+            cursor_value: '{{ response.get(''next'') }}'
+            stop_condition: '{{ not response.get(''next'') }}'
+      incremental_sync:
+        type: DatetimeBasedCursor
+        cursor_field: updated
+        cursor_datetime_formats:
+        - '%Y-%m-%d %H:%M:%S'
+        datetime_format: '%Y-%m-%dT%H:%M:%S'
+        start_datetime:
+          type: MinMaxDatetime
+          datetime: '1970-01-01T00:00:00Z'
+          datetime_format: '%Y-%m-%dT%H:%M:%SZ'
+        start_time_option:
+          type: RequestOption
+          inject_into: request_parameter
+          field_name: updated_start
+      schema_loader:
+        type: InlineSchemaLoader
+        schema:
+          $schema: http://json-schema.org/schema#
+          type: object
+          additionalProperties: true
+          properties:
+            public_id:
+              type:
+              - string
+              - 'null'
+            customer:
+              type:
+              - string
+              - 'null'
+            merchant:
+              type:
+              - string
+              - 'null'
+            product:
+              type:
+              - string
+              - 'null'
+            payment:
+              type:
+              - string
+              - 'null'
+            shipping_address:
+              type:
+              - string
+              - 'null'
+            offer:
+              type:
+              - string
+              - 'null'
+            offer_profile_public_id:
+              type:
+              - string
+              - 'null'
+            subscription_type:
+              type:
+              - string
+              - 'null'
+            raw_subscription_type:
+              type:
+              - string
+              - 'null'
+            components:
+              type:
+              - array
+              - 'null'
+            extra_data:
+              type:
+              - object
+              - 'null'
+            product_attribute:
+              type:
+              - string
+              - 'null'
+            quantity:
+              type:
+              - integer
+              - 'null'
+            price:
+              type:
+              - string
+              - 'null'
+            frequency_days:
+              type:
+              - integer
+              - 'null'
+            reminder_days:
+              type:
+              - integer
+              - 'null'
+            every:
+              type:
+              - integer
+              - 'null'
+            every_period:
+              type:
+              - integer
+              - 'null'
+            start_date:
+              type:
+              - string
+              - 'null'
+            cancelled:
+              type:
+              - string
+              - 'null'
+            cancel_reason:
+              type:
+              - string
+              - 'null'
+            cancel_reason_code:
+              type:
+              - integer
+              - 'null'
+            currency_code:
+              type:
+              - string
+              - 'null'
+            session_id:
+              type:
+              - string
+              - 'null'
+            merchant_order_id:
+              type:
+              - string
+              - 'null'
+            created:
+              type:
+              - string
+              - 'null'
+            updated:
+              type:
+              - string
+              - 'null'
+            live:
+              type:
+              - boolean
+              - 'null'
+            external_id:
+              type:
+              - string
+              - 'null'
+            iteration:
+              type:
+              - string
+              - 'null'
+            sequence:
+              type:
+              - string
+              - 'null'
+            customer_rep:
+              type:
+              - number
+              - 'null'
+            club:
+              type:
+              - string
+              - 'null'
+            prepaid_subscription_context:
+              type:
+              - object
+              - 'null'
+            free_trial_subscription_context:
+              type:
+              - object
+              - 'null'
+            grantees:
+              type:
+              - array
+              - 'null'
+streams:
+- $ref: '#/definitions/streams/addresses'
+- $ref: '#/definitions/streams/cancellation_reasons'
+- $ref: '#/definitions/streams/customers'
+- $ref: '#/definitions/streams/entitlements'
+- $ref: '#/definitions/streams/items'
+- $ref: '#/definitions/streams/offer_profiles'
+- $ref: '#/definitions/streams/one_time_incentives'
+- $ref: '#/definitions/streams/orders'
+- $ref: '#/definitions/streams/payments'
+- $ref: '#/definitions/streams/product_groups'
+- $ref: '#/definitions/streams/products'
+- $ref: '#/definitions/streams/product_relationships'
+- $ref: '#/definitions/streams/resources'
+- $ref: '#/definitions/streams/subscriptions'
+spec:
+  type: Spec
+  connection_specification:
+    $schema: http://json-schema.org/draft-07/schema#
+    type: object
+    required:
+    - api_key
+    - merchant
+    properties:
+      api_key:
+        type: string
+        title: Api Key
+        description: Ordergroove Application API key from https://rc3.ordergroove.com/keys/ to send in
+          the x-api-key header.
+        airbyte_secret: true
+        order: 0
+      merchant:
+        type: string
+        title: Merchant
+        order: 1
+    additionalProperties: true

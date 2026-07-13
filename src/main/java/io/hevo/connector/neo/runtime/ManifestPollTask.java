@@ -42,6 +42,7 @@ public class ManifestPollTask extends SaasObjectPollTask {
   private final DpathExtractor extractor;
   private final RecordPipeline recordPipeline;
   private final PartitionRouters.Router partitionRouter;
+  private final RecordNormalizer recordNormalizer;
 
   public ManifestPollTask(
       PlatformHooks platformHooks,
@@ -60,12 +61,16 @@ public class ManifestPollTask extends SaasObjectPollTask {
         new RecordPipeline(stream.recordSelector(), stream.transformations(), config);
     this.partitionRouter =
         PartitionRouters.from(stream.partitionRouter(), config, this::readParentStream);
+    this.recordNormalizer = new RecordNormalizer(stream);
   }
 
   @Override
   public PollResult executePoll(SimpleOffset offset, CategoryType categoryType) {
     String stateJson = offset == null || offset.isEmpty() ? null : offset.get(STATE_KEY);
-    ReadResult result = read(record -> publishRecord(stream.namespace(), record), stateJson);
+    ReadResult result =
+        read(
+            record -> publishRecord(stream.namespace(), recordNormalizer.normalize(record)),
+            stateJson);
     log.info("Stream {}: published {} records", stream.name(), result.recordCount());
     SimpleOffset nextOffset = SimpleOffset.empty();
     if (result.stateJson() != null) {

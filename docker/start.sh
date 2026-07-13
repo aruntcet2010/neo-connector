@@ -26,7 +26,8 @@ java_args=(
     "-XX:+DisableExplicitGC"
     "-XX:+UseTLAB"
     "-XX:+UseCompressedOops"
-    "-Xmx512m"
+    # Manifest schema validation needs headroom (mirrors the test-heap note in build.gradle.kts)
+    "-Xmx1024m"
     "-Xms512m"
     "-XX:+ShowCodeDetailsInExceptionMessages"
 )

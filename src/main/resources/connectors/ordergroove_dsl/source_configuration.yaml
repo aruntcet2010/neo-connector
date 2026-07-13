@@ -1,0 +1,30 @@
+groups:
+- type: CONNECTION
+  order: 1
+  title: Connect to your Ordergroove_DSL account
+fields:
+- name: api_key
+  display_name: Api Key
+  type: PASSWORD
+  required: true
+  is_eligible_for_edit: true
+  group:
+    type: CONNECTION
+    field_order: 1
+  importance: HIGH
+  size: 100
+  description: Ordergroove Application API key from https://rc3.ordergroove.com/keys/
+    to send in the x-api-key header.
+  helper_text:
+    text: Ordergroove Application API key from https://rc3.ordergroove.com/keys/ to
+      send in the x-api-key header.
+- name: merchant
+  display_name: Merchant
+  type: STRING
+  required: true
+  is_eligible_for_edit: true
+  group:
+    type: CONNECTION
+    field_order: 2
+  importance: HIGH
+  size: 100

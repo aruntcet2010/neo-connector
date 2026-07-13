@@ -1,0 +1,17 @@
+type: ORDERGROOVE_DSL
+standard_type: ORDERGROOVE_DSL
+version: 1.0.0
+display_name: Ordergroove_DSL
+logo_url: https://res.cloudinary.com/hevo/image/upload/v1764867647/dashboard/image_iwkgyj.png
+dark_mode_logo_url: https://res.cloudinary.com/hevo/image/upload/v1764867647/dashboard/image_iwkgyj.png
+description: Ordergroove_DSL (declarative)
+documentation_path: /sources/ordergroove_dsl/
+in_beta: true
+categories:
+- SALES_AND_SUPPORT
+attributes:
+  supports_object_relations: false
+  supported_load_modes:
+  - MERGE
+  replication_types:
+  - HISTORICAL_AND_INCREMENTAL
