@@ -296,6 +296,39 @@ class TestReadCliTest {
   }
 
   @Test
+  void serveModeAnswersEachRequestLineInOrder() throws Exception {
+    server.enqueue(new MockResponse().setBody("{\"content\": [{\"id\": 1}]}"));
+    Path manifest = writeManifest();
+    String requests =
+        JSON.writeValueAsString(java.util.Map.of("command", "validate", "manifest", manifest.toString()))
+            + "\n"
+            + JSON.writeValueAsString(java.util.Map.of(
+                "command", "read",
+                "manifest", manifest.toString(),
+                "stream", "items",
+                "config", java.util.Map.of("api_key", "sekret-value"),
+                "no_validate", true,
+                "max_pages", 1))
+            + "\n"
+            + "{\"command\": \"bogus\"}\n";
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    TestReadCli.serve(
+        new java.io.BufferedReader(new java.io.StringReader(requests)),
+        new PrintStream(stdout, true, "UTF-8"));
+
+    String[] lines = stdout.toString("UTF-8").strip().split("\n");
+    assertEquals(3, lines.length);
+    assertTrue(JSON.readTree(lines[0]).get("valid").asBoolean());
+    JsonNode read = JSON.readTree(lines[1]);
+    assertTrue(read.get("success").asBoolean());
+    assertEquals(1, read.get("record_count").asInt());
+    assertTrue(
+        read.get("slices").get(0).get("pages").get(0).get("request").get("url").asText()
+            .contains("apiKey=****"));
+    assertFalse(JSON.readTree(lines[2]).get("success").asBoolean());
+  }
+
+  @Test
   void unknownStreamIsCleanJsonError() throws Exception {
     JsonNode report =
         runCli(

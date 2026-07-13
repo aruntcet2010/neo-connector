@@ -1,6 +1,7 @@
 package io.hevo.connector.neo.cli;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.hevo.connector.cdk.saas.http.SaasHttpClient;
 import io.hevo.connector.cdk.saas.http.SaasHttpRequest;
@@ -9,9 +10,12 @@ import io.hevo.connector.neo.manifest.ManifestPipeline;
 import io.hevo.connector.neo.runtime.Components;
 import io.hevo.connector.neo.runtime.StreamReader;
 import io.hevo.connector.neo.runtime.StreamSpec;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -57,9 +61,13 @@ public final class TestReadCli {
   static int run(String[] args, PrintStream out) {
     try {
       if (args.length == 0) {
-        throw new IllegalArgumentException("Usage: validate|read --manifest <path> ...");
+        throw new IllegalArgumentException("Usage: validate|read|serve --manifest <path> ...");
       }
       String command = args[0];
+      if ("serve".equals(command)) {
+        serve(new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8)), out);
+        return 0;
+      }
       Map<String, String> opts = parseOpts(args);
       Map<String, Object> report =
           switch (command) {
@@ -78,6 +86,86 @@ public final class TestReadCli {
         // last resort below
       }
       return 1;
+    }
+  }
+
+  // --------------------------------------------------------------------- serve
+
+  /**
+   * Persistent worker mode: one JSON request per stdin line, one JSON response line on stdout,
+   * strictly in order. Requests are the CLI options as JSON — {"command": "validate"|"read",
+   * "manifest": path, "stream": ..., "config": {...inline...}, "state": {...}, "page_size": N,
+   * "max_records"/"max_pages"/"max_slices": N, "secret_keys": [...], "no_validate": bool}.
+   *
+   * <p>The point of this mode: the JVM and the compiled component schema are paid for once,
+   * and a caller multiplexing many tool calls holds ONE engine process instead of one per call.
+   * A request that fails answers with an error report and the loop continues; EOF exits.
+   */
+  static void serve(BufferedReader in, PrintStream out) {
+    String line;
+    try {
+      while ((line = in.readLine()) != null) {
+        if (line.isBlank()) {
+          continue;
+        }
+        Map<String, Object> response;
+        Path tempConfig = null;
+        try {
+          JsonNode request = JSON.readTree(line);
+          String command = request.path("command").asText("");
+          Map<String, String> opts = new LinkedHashMap<>();
+          copyText(request, "manifest", opts, "manifest");
+          copyText(request, "stream", opts, "stream");
+          copyNumber(request, "page_size", opts, "page-size");
+          copyNumber(request, "max_records", opts, "max-records");
+          copyNumber(request, "max_pages", opts, "max-pages");
+          copyNumber(request, "max_slices", opts, "max-slices");
+          if (request.path("no_validate").asBoolean(false)) {
+            opts.put("no-validate", "true");
+          }
+          if (request.has("state") && !request.get("state").isNull()) {
+            opts.put("state", request.get("state").toString());
+          }
+          if (request.has("secret_keys") && request.get("secret_keys").isArray()) {
+            List<String> keys = new ArrayList<>();
+            request.get("secret_keys").forEach(k -> keys.add(k.asText()));
+            opts.put("secret-keys", String.join(",", keys));
+          }
+          if (request.has("config") && !request.get("config").isNull()) {
+            tempConfig = Files.createTempFile("neo-config-", ".json");
+            Files.writeString(tempConfig, request.get("config").toString());
+            opts.put("config-file", tempConfig.toString());
+          }
+          response =
+              switch (command) {
+                case "validate" -> validate(opts);
+                case "read" -> read(opts);
+                default -> throw new IllegalArgumentException("Unknown command: " + command);
+              };
+        } catch (Exception e) {
+          response = Map.of("success", false, "errors", List.of(errorEntry(e)));
+        } finally {
+          if (tempConfig != null) {
+            Files.deleteIfExists(tempConfig);
+          }
+        }
+        out.println(JSON.writeValueAsString(response));
+      }
+    } catch (Exception e) {
+      // Broken stdin/stdout means the parent is gone; exit the loop.
+    }
+  }
+
+  private static void copyText(JsonNode request, String from, Map<String, String> opts, String to) {
+    if (request.has(from) && !request.get(from).isNull()) {
+      opts.put(to, request.get(from).asText());
+    }
+  }
+
+  private static void copyNumber(
+      JsonNode request, String from, Map<String, String> opts, String to) {
+    if (request.has(from) && request.get(from).isNumber()) {
+      opts.put(to, String.valueOf(request.get(from).intValue()));
     }
   }
 
