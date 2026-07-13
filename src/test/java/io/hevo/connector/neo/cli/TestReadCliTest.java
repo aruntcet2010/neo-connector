@@ -170,6 +170,48 @@ class TestReadCliTest {
   }
 
   @Test
+  void validateConstructsFullRuntimeGraph() throws Exception {
+    // OAuth is schema-valid but the engine can't execute it: gate 2 must catch it at
+    // validate time, not first read. (Regression: validate once checked StreamSpec only.)
+    String yaml =
+        """
+        version: 4.6.2
+        type: DeclarativeSource
+        check: { type: CheckStream, stream_names: [things] }
+        streams:
+          - type: DeclarativeStream
+            name: things
+            retriever:
+              type: SimpleRetriever
+              requester:
+                type: HttpRequester
+                url_base: https://x.test
+                authenticator:
+                  type: OAuthAuthenticator
+                  token_refresh_endpoint: https://x.test/token
+                  client_id: "{{ config['client_id'] }}"
+                  client_secret: "{{ config['client_secret'] }}"
+                  refresh_token: "{{ config['refresh_token'] }}"
+              record_selector:
+                type: RecordSelector
+                extractor: { type: DpathExtractor, field_path: [] }
+        spec:
+          type: Spec
+          connection_specification: { type: object, properties: {} }
+        """;
+    Path path = tmp.resolve("oauth.yaml");
+    Files.writeString(path, yaml);
+    JsonNode report = runCli("validate", "--manifest", path.toString());
+    assertTrue(report.get("valid").asBoolean());
+    assertFalse(report.get("all_streams_supported").asBoolean());
+    JsonNode stream = report.get("streams").get(0);
+    assertFalse(stream.get("supported").asBoolean());
+    assertTrue(
+        stream.get("reason").asText().toLowerCase().contains("authenticator"),
+        stream.get("reason").asText());
+  }
+
+  @Test
   void readProducesEvidenceWithRedactedSecrets() throws Exception {
     server.enqueue(
         new MockResponse().setBody("{\"content\": [{\"id\": 1}, {\"id\": 2}]}"));

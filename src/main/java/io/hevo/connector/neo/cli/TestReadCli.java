@@ -101,6 +101,11 @@ public final class TestReadCli {
       entry.put("name", Components.getString(streamComponent, "name"));
       try {
         StreamSpec spec = new StreamSpec(streamComponent);
+        // Constructing the full runtime graph (requester incl. authenticator, paginator,
+        // extractor, transformations, partition router) is the real gate 2: a component the
+        // engine cannot execute throws here, not just at read time. No HTTP happens —
+        // construction is lazy about evaluation.
+        new StreamReader(spec, null, Map.of());
         entry.put("name", spec.name());
         entry.put("supported", true);
         entry.put("primary_key", spec.primaryKey());
