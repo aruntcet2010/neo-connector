@@ -13,7 +13,20 @@ public final class ManifestPipeline {
 
   private final ReferenceResolver referenceResolver = new ReferenceResolver();
   private final ComponentTransformer componentTransformer = new ComponentTransformer();
-  private final ManifestValidator validator = new ManifestValidator();
+  private final boolean validate;
+
+  public ManifestPipeline() {
+    this(true);
+  }
+
+  /**
+   * @param validate skip schema validation with {@code false} — for callers whose input was
+   *     already validated (e.g. the test-read CLI on harness fragments); compiling the component
+   *     schema costs ~1&nbsp;GB of transient heap.
+   */
+  public ManifestPipeline(boolean validate) {
+    this.validate = validate;
+  }
 
   public Manifest process(String manifestYaml) {
     return process(ManifestLoader.load(manifestYaml));
@@ -27,7 +40,9 @@ public final class ManifestPipeline {
     Map<String, Object> resolved = referenceResolver.preprocessManifest(rawManifest);
     Map<String, Object> propagated =
         componentTransformer.propagateTypesAndParameters("", resolved, Map.of());
-    validator.validate(propagated);
+    if (validate) {
+      new ManifestValidator().validate(propagated);
+    }
     return new Manifest(propagated);
   }
 

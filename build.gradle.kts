@@ -48,6 +48,33 @@ tasks.test {
     maxHeapSize = "1g"
 }
 
+// The harness-facing engine CLI as a self-contained fat jar: validate + bounded test reads.
+// Runs the same StreamReader the connector runs — verification == production by construction.
+tasks.register<Jar>("testReadJar") {
+    group = "neo"
+    description = "Self-contained neo-testread CLI jar (validate + bounded live reads)"
+    archiveBaseName.set("neo-testread")
+    archiveClassifier.set("all")
+    manifest { attributes["Main-Class"] = "io.hevo.connector.neo.cli.TestReadCli" }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+    from(sourceSets["main"].output)
+    dependsOn(configurations.runtimeClasspath)
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+}
+
+// Local "publish": drop the jar where the harness expects it (override with -PneoTestReadDir=...).
+// The S3 channel-pointer publish replaces this when the release pipeline lands.
+tasks.register<Copy>("publishTestReadLocal") {
+    group = "neo"
+    description = "Copy the neo-testread jar to a fixed local path for the connector-harness"
+    dependsOn("testReadJar")
+    from(tasks.named("testReadJar"))
+    into(providers.gradleProperty("neoTestReadDir").getOrElse(
+        System.getProperty("user.home") + "/.neo"))
+    rename { "neo-testread.jar" }
+}
+
 // Dev tool: run a manifest against the real API. See LocalRunner for usage.
 tasks.register<JavaExec>("runManifest") {
     group = "neo"

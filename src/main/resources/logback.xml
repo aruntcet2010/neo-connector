@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Default logging for CLI/test use: everything to STDERR, because the test-read CLI's
+     stdout carries exactly one JSON report and nothing else. The connector container is
+     unaffected: docker/start.sh points -Dlogback.configurationFile at /app/logback.xml,
+     which overrides this classpath default. -->
+<configuration>
+  <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+    <target>System.err</target>
+    <encoder>
+      <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="STDERR"/>
+  </root>
+</configuration>

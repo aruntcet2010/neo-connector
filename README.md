@@ -86,6 +86,31 @@ Known divergences (accepted for now, to be caught by the P3 differential harness
 - Python-literal parsing of dict/list strings uses lenient JSON (single quotes ok; embedded
   `True`/`None` literals are not).
 
+## The test-read CLI (harness-facing engine)
+
+`StreamReader` is the single read engine shared by the production poll task and the
+`neo-testread` CLI — what the harness verifies is what production runs, by construction.
+
+```bash
+./gradlew publishTestReadLocal          # builds the fat jar → ~/.neo/neo-testread.jar
+                                        #   (-PneoTestReadDir=/opt/neo to override)
+
+# Gate 1+2: valid DSL + this engine supports every stream (no HTTP)
+java -jar ~/.neo/neo-testread.jar validate --manifest fragment.yaml
+
+# Gate 3: bounded live read with per-page request/response evidence
+java -jar ~/.neo/neo-testread.jar read --manifest fragment.yaml --stream orders \
+    --config-file credentials.json [--state '{"cursor":"..."}'] [--page-size 2] \
+    [--max-records 20] [--max-pages 2] [--max-slices 3] [--no-validate] \
+    [--secret-keys api_key]
+```
+
+Contract: exactly one JSON report on **stdout** (shape mirrors the harness's Python
+`TestReadReport`), all logs on **stderr**, secrets masked in all evidence (every config
+value is treated as secret unless `--secret-keys` narrows it). Defaults: 20 records,
+2 pages/slice, 3 slices. `--no-validate` skips schema validation (≈1 GB transient heap)
+for fragments already validated upstream.
+
 ## Build & test
 
 ```bash
